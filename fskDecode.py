@@ -14,7 +14,7 @@ t_bit = 0.022
 sps = int(samp_rate*t_bit)
 tol = 3
 
-msg_len = 6
+msg_len = 20
 start_sequence = [chr(97),chr(98)]
 
 
@@ -94,6 +94,7 @@ while True:
         msg = data[:msg_len]
 
         if (msg[:2] != start_sequence):
+            print(f"Attempted Message: {"".join(msg)}")
             data = data[1:]
         else:
             print(f"Receving Message: {"".join(msg[2:])}")

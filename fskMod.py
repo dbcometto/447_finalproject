@@ -14,6 +14,7 @@ from gnuradio import qtgui
 from gnuradio import analog
 import math
 from gnuradio import blocks
+import pmt
 from gnuradio import digital
 from gnuradio import filter
 from gnuradio.filter import firdes
@@ -83,7 +84,7 @@ class fskMod(gr.top_block, Qt.QWidget):
             samp_rate, #size
             samp_rate, #samp_rate
             "", #name
-            2, #number of inputs
+            1, #number of inputs
             None # parent
         )
         self.qtgui_time_sink_x_0.set_update_time(0.10)
@@ -114,7 +115,7 @@ class fskMod(gr.top_block, Qt.QWidget):
             -1, -1, -1, -1, -1]
 
 
-        for i in range(2):
+        for i in range(1):
             if len(labels[i]) == 0:
                 self.qtgui_time_sink_x_0.set_line_label(i, "Data {0}".format(i))
             else:
@@ -129,16 +130,9 @@ class fskMod(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(self._qtgui_time_sink_x_0_win)
         self.freq_xlating_fir_filter_xxx_0 = filter.freq_xlating_fir_filter_fcc(1, xlating_taps, ((f_space+f_mark)/2), samp_rate)
         self.digital_binary_slicer_fb_0 = digital.binary_slicer_fb()
-        self.blocks_vector_source_x_0 = blocks.vector_source_b((97,98,90,69,82,79), True, 1, [])
-        self.blocks_vco_f_0 = blocks.vco_f(samp_rate, (2*np.pi*vco_max), v_fsk)
-        self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
         self.blocks_uchar_to_float_1 = blocks.uchar_to_float()
-        self.blocks_uchar_to_float_0 = blocks.uchar_to_float()
-        self.blocks_throttle2_0_0 = blocks.throttle( gr.sizeof_char*1, samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * samp_rate) if "auto" == "time" else int(0.1), 1) )
-        self.blocks_repeat_0 = blocks.repeat(gr.sizeof_char*1, (int(samp_rate*t_bit)))
-        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(((f_mark-f_space)/vco_max))
-        self.blocks_delay_0 = blocks.delay(gr.sizeof_float*1, 145)
-        self.blocks_add_const_vxx_0 = blocks.add_const_ff((f_space/vco_max))
+        self.blocks_file_source_0 = blocks.file_source(gr.sizeof_float*1, 'C:\\Users\\C25Dante.Cometto\\447_finalproject\\codeword.dat', True, 0, 0)
+        self.blocks_file_source_0.set_begin_tag(pmt.PMT_NIL)
         self.analog_simple_squelch_cc_0 = analog.simple_squelch_cc((-70), 1)
         self.analog_quadrature_demod_cf_0 = analog.quadrature_demod_cf((samp_rate/(2*np.pi*(f_mark-f_space))))
 
@@ -148,18 +142,9 @@ class fskMod(gr.top_block, Qt.QWidget):
         ##################################################
         self.connect((self.analog_quadrature_demod_cf_0, 0), (self.digital_binary_slicer_fb_0, 0))
         self.connect((self.analog_simple_squelch_cc_0, 0), (self.analog_quadrature_demod_cf_0, 0))
-        self.connect((self.blocks_add_const_vxx_0, 0), (self.blocks_vco_f_0, 0))
-        self.connect((self.blocks_delay_0, 0), (self.qtgui_time_sink_x_0, 1))
-        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_add_const_vxx_0, 0))
-        self.connect((self.blocks_repeat_0, 0), (self.blocks_throttle2_0_0, 0))
-        self.connect((self.blocks_throttle2_0_0, 0), (self.blocks_uchar_to_float_0, 0))
-        self.connect((self.blocks_uchar_to_float_0, 0), (self.blocks_delay_0, 0))
-        self.connect((self.blocks_uchar_to_float_0, 0), (self.blocks_multiply_const_vxx_0, 0))
+        self.connect((self.blocks_file_source_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.blocks_uchar_to_float_1, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.blocks_uchar_to_float_1, 0), (self.zeromq_pub_sink_0, 0))
-        self.connect((self.blocks_unpack_k_bits_bb_0, 0), (self.blocks_repeat_0, 0))
-        self.connect((self.blocks_vco_f_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
-        self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
         self.connect((self.digital_binary_slicer_fb_0, 0), (self.blocks_uchar_to_float_1, 0))
         self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_simple_squelch_cc_0, 0))
 
@@ -179,8 +164,6 @@ class fskMod(gr.top_block, Qt.QWidget):
         self.samp_rate = samp_rate
         self.set_xlating_taps(firdes.low_pass(1.0, self.samp_rate, 1000, 400, window.WIN_HAMMING, 6.76))
         self.analog_quadrature_demod_cf_0.set_gain((self.samp_rate/(2*np.pi*(self.f_mark-self.f_space))))
-        self.blocks_repeat_0.set_interpolation((int(self.samp_rate*self.t_bit)))
-        self.blocks_throttle2_0_0.set_sample_rate(self.samp_rate)
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
 
     def get_xlating_taps(self):
@@ -195,8 +178,6 @@ class fskMod(gr.top_block, Qt.QWidget):
 
     def set_vco_max(self, vco_max):
         self.vco_max = vco_max
-        self.blocks_add_const_vxx_0.set_k((self.f_space/self.vco_max))
-        self.blocks_multiply_const_vxx_0.set_k(((self.f_mark-self.f_space)/self.vco_max))
 
     def get_v_fsk(self):
         return self.v_fsk
@@ -209,7 +190,6 @@ class fskMod(gr.top_block, Qt.QWidget):
 
     def set_t_bit(self, t_bit):
         self.t_bit = t_bit
-        self.blocks_repeat_0.set_interpolation((int(self.samp_rate*self.t_bit)))
 
     def get_f_space(self):
         return self.f_space
@@ -217,8 +197,6 @@ class fskMod(gr.top_block, Qt.QWidget):
     def set_f_space(self, f_space):
         self.f_space = f_space
         self.analog_quadrature_demod_cf_0.set_gain((self.samp_rate/(2*np.pi*(self.f_mark-self.f_space))))
-        self.blocks_add_const_vxx_0.set_k((self.f_space/self.vco_max))
-        self.blocks_multiply_const_vxx_0.set_k(((self.f_mark-self.f_space)/self.vco_max))
         self.freq_xlating_fir_filter_xxx_0.set_center_freq(((self.f_space+self.f_mark)/2))
 
     def get_f_mark(self):
@@ -227,7 +205,6 @@ class fskMod(gr.top_block, Qt.QWidget):
     def set_f_mark(self, f_mark):
         self.f_mark = f_mark
         self.analog_quadrature_demod_cf_0.set_gain((self.samp_rate/(2*np.pi*(self.f_mark-self.f_space))))
-        self.blocks_multiply_const_vxx_0.set_k(((self.f_mark-self.f_space)/self.vco_max))
         self.freq_xlating_fir_filter_xxx_0.set_center_freq(((self.f_space+self.f_mark)/2))
 
 
