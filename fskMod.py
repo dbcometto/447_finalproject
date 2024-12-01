@@ -66,9 +66,7 @@ class fskMod(gr.top_block, Qt.QWidget):
         ##################################################
         # Variables
         ##################################################
-        self.dec = dec = 1
-        self.audio_rate = audio_rate = 48000
-        self.samp_rate = samp_rate = audio_rate*dec
+        self.samp_rate = samp_rate = 48000
         self.xlating_taps = xlating_taps = firdes.low_pass(1.0, samp_rate, 1000,400, window.WIN_HAMMING, 6.76)
         self.vco_max = vco_max = 2500
         self.v_fsk = v_fsk = 1
@@ -80,12 +78,12 @@ class fskMod(gr.top_block, Qt.QWidget):
         # Blocks
         ##################################################
 
-        self.zeromq_pub_sink_0 = zeromq.pub_sink(gr.sizeof_float, 1, 'tcp://127.0.0.1:4444', 100, False, (-1), '', True, True)
+        self.zeromq_pub_sink_0 = zeromq.pub_sink(gr.sizeof_float, 1, 'tcp://127.0.0.1:4444', 10000, False, (-1), '', True, True)
         self.qtgui_time_sink_x_0 = qtgui.time_sink_f(
-            1024, #size
+            samp_rate, #size
             samp_rate, #samp_rate
             "", #name
-            1, #number of inputs
+            2, #number of inputs
             None # parent
         )
         self.qtgui_time_sink_x_0.set_update_time(0.10)
@@ -98,7 +96,7 @@ class fskMod(gr.top_block, Qt.QWidget):
         self.qtgui_time_sink_x_0.enable_autoscale(False)
         self.qtgui_time_sink_x_0.enable_grid(False)
         self.qtgui_time_sink_x_0.enable_axis_labels(True)
-        self.qtgui_time_sink_x_0.enable_control_panel(False)
+        self.qtgui_time_sink_x_0.enable_control_panel(True)
         self.qtgui_time_sink_x_0.enable_stem_plot(False)
 
 
@@ -116,7 +114,7 @@ class fskMod(gr.top_block, Qt.QWidget):
             -1, -1, -1, -1, -1]
 
 
-        for i in range(1):
+        for i in range(2):
             if len(labels[i]) == 0:
                 self.qtgui_time_sink_x_0.set_line_label(i, "Data {0}".format(i))
             else:
@@ -131,17 +129,17 @@ class fskMod(gr.top_block, Qt.QWidget):
         self.top_layout.addWidget(self._qtgui_time_sink_x_0_win)
         self.freq_xlating_fir_filter_xxx_0 = filter.freq_xlating_fir_filter_fcc(1, xlating_taps, ((f_space+f_mark)/2), samp_rate)
         self.digital_binary_slicer_fb_0 = digital.binary_slicer_fb()
-        self.blocks_vector_source_x_0 = blocks.vector_source_b((90,69,82,79), True, 1, [])
+        self.blocks_vector_source_x_0 = blocks.vector_source_b((97,98,90,69,82,79), True, 1, [])
         self.blocks_vco_f_0 = blocks.vco_f(samp_rate, (2*np.pi*vco_max), v_fsk)
         self.blocks_unpack_k_bits_bb_0 = blocks.unpack_k_bits_bb(8)
         self.blocks_uchar_to_float_1 = blocks.uchar_to_float()
         self.blocks_uchar_to_float_0 = blocks.uchar_to_float()
-        self.blocks_throttle2_0 = blocks.throttle( gr.sizeof_gr_complex*1, samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * samp_rate) if "auto" == "time" else int(0.1), 1) )
+        self.blocks_throttle2_0_0 = blocks.throttle( gr.sizeof_char*1, samp_rate, True, 0 if "auto" == "auto" else max( int(float(0.1) * samp_rate) if "auto" == "time" else int(0.1), 1) )
         self.blocks_repeat_0 = blocks.repeat(gr.sizeof_char*1, (int(samp_rate*t_bit)))
-        self.blocks_null_source_0 = blocks.null_source(gr.sizeof_gr_complex*1)
-        self.blocks_null_sink_0 = blocks.null_sink(gr.sizeof_gr_complex*1)
         self.blocks_multiply_const_vxx_0 = blocks.multiply_const_ff(((f_mark-f_space)/vco_max))
+        self.blocks_delay_0 = blocks.delay(gr.sizeof_float*1, 145)
         self.blocks_add_const_vxx_0 = blocks.add_const_ff((f_space/vco_max))
+        self.analog_simple_squelch_cc_0 = analog.simple_squelch_cc((-70), 1)
         self.analog_quadrature_demod_cf_0 = analog.quadrature_demod_cf((samp_rate/(2*np.pi*(f_mark-f_space))))
 
 
@@ -149,11 +147,13 @@ class fskMod(gr.top_block, Qt.QWidget):
         # Connections
         ##################################################
         self.connect((self.analog_quadrature_demod_cf_0, 0), (self.digital_binary_slicer_fb_0, 0))
+        self.connect((self.analog_simple_squelch_cc_0, 0), (self.analog_quadrature_demod_cf_0, 0))
         self.connect((self.blocks_add_const_vxx_0, 0), (self.blocks_vco_f_0, 0))
+        self.connect((self.blocks_delay_0, 0), (self.qtgui_time_sink_x_0, 1))
         self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_add_const_vxx_0, 0))
-        self.connect((self.blocks_null_source_0, 0), (self.blocks_throttle2_0, 0))
-        self.connect((self.blocks_repeat_0, 0), (self.blocks_uchar_to_float_0, 0))
-        self.connect((self.blocks_throttle2_0, 0), (self.blocks_null_sink_0, 0))
+        self.connect((self.blocks_repeat_0, 0), (self.blocks_throttle2_0_0, 0))
+        self.connect((self.blocks_throttle2_0_0, 0), (self.blocks_uchar_to_float_0, 0))
+        self.connect((self.blocks_uchar_to_float_0, 0), (self.blocks_delay_0, 0))
         self.connect((self.blocks_uchar_to_float_0, 0), (self.blocks_multiply_const_vxx_0, 0))
         self.connect((self.blocks_uchar_to_float_1, 0), (self.qtgui_time_sink_x_0, 0))
         self.connect((self.blocks_uchar_to_float_1, 0), (self.zeromq_pub_sink_0, 0))
@@ -161,7 +161,7 @@ class fskMod(gr.top_block, Qt.QWidget):
         self.connect((self.blocks_vco_f_0, 0), (self.freq_xlating_fir_filter_xxx_0, 0))
         self.connect((self.blocks_vector_source_x_0, 0), (self.blocks_unpack_k_bits_bb_0, 0))
         self.connect((self.digital_binary_slicer_fb_0, 0), (self.blocks_uchar_to_float_1, 0))
-        self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_quadrature_demod_cf_0, 0))
+        self.connect((self.freq_xlating_fir_filter_xxx_0, 0), (self.analog_simple_squelch_cc_0, 0))
 
 
     def closeEvent(self, event):
@@ -172,20 +172,6 @@ class fskMod(gr.top_block, Qt.QWidget):
 
         event.accept()
 
-    def get_dec(self):
-        return self.dec
-
-    def set_dec(self, dec):
-        self.dec = dec
-        self.set_samp_rate(self.audio_rate*self.dec)
-
-    def get_audio_rate(self):
-        return self.audio_rate
-
-    def set_audio_rate(self, audio_rate):
-        self.audio_rate = audio_rate
-        self.set_samp_rate(self.audio_rate*self.dec)
-
     def get_samp_rate(self):
         return self.samp_rate
 
@@ -194,7 +180,7 @@ class fskMod(gr.top_block, Qt.QWidget):
         self.set_xlating_taps(firdes.low_pass(1.0, self.samp_rate, 1000, 400, window.WIN_HAMMING, 6.76))
         self.analog_quadrature_demod_cf_0.set_gain((self.samp_rate/(2*np.pi*(self.f_mark-self.f_space))))
         self.blocks_repeat_0.set_interpolation((int(self.samp_rate*self.t_bit)))
-        self.blocks_throttle2_0.set_sample_rate(self.samp_rate)
+        self.blocks_throttle2_0_0.set_sample_rate(self.samp_rate)
         self.qtgui_time_sink_x_0.set_samp_rate(self.samp_rate)
 
     def get_xlating_taps(self):
