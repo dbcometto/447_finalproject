@@ -10,19 +10,18 @@ import struct
 # variables
 socket_loc = "tcp://localhost:4444"
 samp_rate = 48000
-t_bit = 0.016
+t_bit = 0.022
 sps = int(samp_rate*t_bit)
 tol = 3
 
 use_overhead = False
-fix_leading_zero = True
 msg_len = 20
 start_sequence_length = 2
 start_sequence = [chr(97),chr(98)]
 
 count = 0
 current_bit = 0
-saved_bits = [0]
+saved_bits = []
 saved_byte = b""
 
 old_time = 0
@@ -34,7 +33,7 @@ count0 = 0
 
 data = []
 
-debugging = True
+debugging = False
 
 
 #  Socket to talk to server
@@ -46,11 +45,10 @@ socket.connect(socket_loc)
 filter = ""
 socket.setsockopt_string(zmq.SUBSCRIBE, filter)
 
-print(f" I am setup and waiting for messages on {socket_loc} with {sps} SPS")
+print(f" I am setup and waiting for messages on {socket_loc}")
 
 
-mycount = 0
-maxcount = 16
+
 
 
 # Main Loop
@@ -66,28 +64,21 @@ while True:
     # If there is new data to process, count samples    
     while current_data != b"":
         bit = int(struct.unpack('f', current_data[:4])[0])
-        current_data = current_data[4:] 
-
-        if (count >= sps-tol):
-            count = 0
+        current_data = current_data[4:]  
+    
+        if (current_bit != bit):
             saved_bits.append(current_bit)
-            if debugging:
-                print(f"Bit counted!  Now we're at {saved_bits}")
-        elif (current_bit == bit):
-            count += 1    
-        elif (current_bit != bit):
-            if debugging:
-                print(f"Switching to {bit} from {current_bit} without counting it after {count} samples")
             current_bit = bit
             count = 0
+            if debugging:
+                print(f"Switched to {current_bit} and counted")
 
 
     # Deal with collected bits
     while len(saved_bits) > 8:
-        print(saved_bits)
 
         # ensure collected bits start with a zero
-        if (saved_bits[0] != 0 and fix_leading_zero):
+        if (saved_bits[0] != 0 and use_overhead):
             while (saved_bits[0] != 0):
                 saved_bits.pop(0)
 
