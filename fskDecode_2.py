@@ -63,63 +63,64 @@ while True:
         bit = int(struct.unpack('f', current_data[:4])[0])
         current_data = current_data[4:] 
 
-        print(bit,end="")
+        # print(bit,end="")
 
-        # if (count >= sps-tol):
-        #     count = 0
-        #     saved_bits.append(current_bit)
-        #     if debugging:
-        #         print(f"Bit counted!  Now we're at {saved_bits}")
+        if (count >= sps-tol):
+            count = 0
+            saved_bits.append(current_bit)
+            if debugging:
+                print(f"Bit counted!  Now we're at {saved_bits}")
 
-        # elif (current_bit == bit):
-        #     count += 1    
+        elif (current_bit == bit):
+            count += 1    
 
-        # elif (current_bit != bit):
-        #     if debugging:
-        #         print(f"Switching to {bit} from {current_bit} without counting it after {count} samples")
-        #     current_bit = bit
-        #     count = 0
+        elif (current_bit != bit):
+            if debugging:
+                print(f"Switching to {bit} from {current_bit} without counting it after {count} samples")
+            current_bit = bit
+            count = 0
 
 
-    # # Deal with collected bits
-    # while len(saved_bits) > 8:
+    # Deal with collected bits
+    while len(saved_bits) > 8:
 
-    #     # ensure collected bits start with a zero
-    #     if (saved_bits[0] != 0 and fix_leading_zero):
-    #         while (saved_bits[0] != 0):
-    #             saved_bits.pop(0)
+        # ensure collected bits start with a zero
+        if (saved_bits[0] != 0 and fix_leading_zero):
+            while (saved_bits[0] != 0):
+                saved_bits.pop(0)
 
-    #             if debugging:
-    #                 print("Popping leading 0!")
-    #     else:
-    #         binary_list = [str(i) for i in saved_bits[:8]]
-    #         byte_binary = "".join(binary_list)
-    #         myint = int(byte_binary,2)
-    #         if myint > 127 or myint < 64:
-    #             saved_bits.pop(0)
-    #         else:
-    #             mychr = chr(myint)
-    #             if debugging:
-    #                 print(mychr)
-    #             data.append(mychr)
+                if debugging:
+                    print("Popping leading 0!")
+        else:
+            binary_list = [str(i) for i in saved_bits[:8]]
+            byte_binary = "".join(binary_list)
+            myint = int(byte_binary,2)
+            if myint > 127 or myint < 64:
+                saved_bits.pop(0)
+            else:
+                mychr = chr(myint)
+                if debugging:
+                    print(mychr)
+                data.append(mychr)
 
-    #             saved_bits = saved_bits[8:]
+                saved_bits = saved_bits[8:]
         
-    # # Handle message
-    # if use_overhead:
-    #     while (len(data) > msg_len):
-    #         msg = data[:msg_len]
+    # Handle message
+    if use_overhead:
+        while (len(data) > msg_len):
+            msg = data[:msg_len]
 
-    #         if (msg[:2] != start_sequence):
-    #             print(f"Attempted Message: {"".join(msg)}")
-    #             data = data[1:]
-    #         else:
-    #             print(f"Receving Message: {"".join(msg[2:])}")
+            if (msg[:2] != start_sequence):
+                print(f"Attempted Message: {"".join(msg)}")
+                data = data[1:]
+            else:
+                print(f"Receving Message: {"".join(msg[2:])}")
 
-    #             data = data[msg_len:]
-    # else:
-    #     while (len(data) > 0):
-    #         print(f"Received Char: {data[0]}")
-    #         data = data[1:]
+                data = data[msg_len:]
+    else:
+        while (len(data) > 0):
+            print(f"Received Char: {data[0]}")
+            #print(data[0],end="")
+            data = data[1:]
         
         
