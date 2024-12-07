@@ -1,123 +1,107 @@
-# This is the python script that will decode the FSK ascii data
+# This is the python script that will decode the FSK ascii data using push/pull
+# 
+#
+# Written by Ben Cometto, 7 Dec 2024
+#
+#
+#
 
 import zmq
-import time
-import collections
 import struct
+import sys
 
 # config
+debugging = False
+debugging2 = False
+verbose = False
 
 # variables
 socket_loc = "tcp://localhost:4444"
 samp_rate = 48000
 t_bit = 0.016
 sps = int(samp_rate*t_bit)
-tol = 3
-
-use_overhead = False
-fix_leading_zero = True
-msg_len = 20
-start_sequence_length = 2
-start_sequence = [chr(97),chr(98)]
+tol_other = 30 # number of acceptable sample differences before switching majority sample
 
 count = 0
+count_other = 0
 current_bit = 0
-saved_bits = [0]
-saved_byte = b""
-
-old_time = 0
-new_time = 0
-
+saved_bits = []
 current_data = b""
-count1 = 0
-count0 = 0
-
-data = []
-
-debugging = True
 
 
-#  Socket to talk to server
+#  Set up socket to talk to GNU Radio
 context = zmq.Context()
-socket = context.socket(zmq.SUB)
-socket.connect(socket_loc)
-
-# Subscribe to socket
-filter = ""
-socket.setsockopt_string(zmq.SUBSCRIBE, filter)
+pull_socket = context.socket(zmq.PULL)
+pull_socket.connect(socket_loc)
 
 print(f" I am setup and waiting for messages on {socket_loc} with {sps} SPS")
 
 
-mycount = 0
-maxcount = 16
-
-
-# Main Loop
-while True:
+# Main Processing Loop
+while True: 
 
     # Get new data
     try:
-        raw_data = socket.recv(flags=zmq.NOBLOCK)
+        raw_data = pull_socket.recv(flags=zmq.NOBLOCK)
         current_data += raw_data
     except:
-        pass
+        pass   
 
     # If there is new data to process, count samples    
-    while current_data != b"":
-        bit = int(struct.unpack('f', current_data[:4])[0])
-        current_data = current_data[4:] 
+    while len(current_data) >= 4: 
+        
+        # pull float out of byte data and convert to int
+        bit = int(struct.unpack('f', current_data[:4])[0]) 
+        current_data = current_data[4:] # delete data off of the front of the queue
+        count += 1
 
-        if (count >= sps-tol):
-            count = 0
-            saved_bits.append(current_bit)
+        if (current_bit != bit): # handle non-current sample value
+            count_other += 1
             if debugging:
-                print(f"Bit counted!  Now we're at {saved_bits}")
-        elif (current_bit == bit):
-            count += 1    
-        elif (current_bit != bit):
-            if debugging:
-                print(f"Switching to {bit} from {current_bit} without counting it after {count} samples")
+                print(f"Sample not counted!  count_other: {count_other} at count: {count}")
+
+        if (count_other >= tol_other): # decide to switch current sample value
+            if debugging2:
+                print(f"Switching to {current_bit} from {bit} at count: {count}", end = "")
+
             current_bit = bit
+            count_other = 0
+
+            if debugging2:
+                print(f"and newcount: {count}")
+            
+        
+        elif (count >= sps): # log a bit
+            if debugging2:
+                print(f"Bit counted at count: {count}!",end="")
             count = 0
+            count_other = 0
+            saved_bits.append(current_bit)
+            if debugging2:
+                print(f"  Now we're at {saved_bits}")
+
+        
 
 
     # Deal with collected bits
-    while len(saved_bits) > 8:
-        print(saved_bits)
+    while len(saved_bits) >= 8:
 
-        # ensure collected bits start with a zero
-        if (saved_bits[0] != 0 and fix_leading_zero):
-            while (saved_bits[0] != 0):
-                saved_bits.pop(0)
+        binary_list = [str(i) for i in saved_bits[:8]] # combine 8 bits into a byte
+        saved_bits = saved_bits[8:] # reindex
 
-                if debugging:
-                    print("Popping leading 0!")
-        else:
-            binary_list = [bin(i)[2:] for i in saved_bits[:8]]
-            byte_binary = "".join(binary_list)
-            mychr = chr(int(byte_binary,2))
-            if debugging:
-                print(mychr)
-            data.append(mychr)
+        byte_binary = "".join(binary_list) # combine bit strings
+        if debugging:
+            print(f"Received Byte: {byte_binary}")
 
-            saved_bits = saved_bits[8:]
+        myint = int(byte_binary,2) # convert string to char
+        mychr = chr(myint)
         
-    # Handle message
-    if use_overhead:
-        while (len(data) > msg_len):
-            msg = data[:msg_len]
 
-            if (msg[:2] != start_sequence):
-                print(f"Attempted Message: {"".join(msg)}")
-                data = data[1:]
-            else:
-                print(f"Receving Message: {"".join(msg[2:])}")
+        if verbose: # display the character
+            print(f"Received Char: {mychr}")
+        else:
+            print(mychr, end="")
+            sys.stdout.flush()
 
-                data = data[msg_len:]
-    else:
-        while (len(data) > 0):
-            print(f"Received Char: {data[0]}")
-            data = data[1:]
         
         
