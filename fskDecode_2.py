@@ -48,16 +48,6 @@ print(f" I am setup and waiting for messages on {socket_loc} with {sps} SPS")
 # Main Processing Loop
 while True:    
 
-    # Get new data
-    try:
-        raw_data = pull_socket.recv(flags=zmq.NOBLOCK)
-        current_data += raw_data
-    except:
-        pass
-
-    if debugging:
-        print(f"Received: {current_data}")
-
     # If there is new data to process, count samples    
     while current_data != b"":
         bit = int(struct.unpack('f', current_data[:4])[0])
@@ -82,7 +72,7 @@ while True:
 
 
     # Deal with collected bits
-    while len(saved_bits) > 8:
+    while len(saved_bits) >= 8:
 
         # ensure collected bits start with a zero
         if (saved_bits[0] != 0 and fix_leading_zero):
@@ -104,10 +94,11 @@ while True:
                 data.append(mychr)
 
                 saved_bits = saved_bits[8:]
+                print(saved_bits)
         
     # Handle message
     if use_overhead:
-        while (len(data) > msg_len):
+        while (len(data) >= msg_len):
             msg = data[:msg_len]
 
             if (msg[:2] != start_sequence):
@@ -122,5 +113,18 @@ while True:
             print(f"Received Char: {data[0]}")
             #print(data[0],end="")
             data = data[1:]
+            print(data)
+
+
+    # Get new data
+    try:
+        raw_data = pull_socket.recv(flags=zmq.NOBLOCK)
+        current_data += raw_data
+        print(current_data)
+    except:
+        pass
+
+    if debugging:
+        print(f"Received: {current_data}")
         
         
